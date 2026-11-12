@@ -120,7 +120,7 @@ export default function Admin() {
             <Link to="/discover" className="btn btn-secondary">
               Go to Discover
             </Link>
-            <Link to="/login" className="btn btn-primary">
+            <Link to="/admin-login" className="btn btn-primary">
               Log In as Admin
             </Link>
           </div>

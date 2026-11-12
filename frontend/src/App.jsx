@@ -6,6 +6,7 @@ import Discover from './pages/Discover';
 import Restaurant from './pages/Restaurant';
 import Admin from './pages/Admin';
 import Login from './pages/Login';
+import AdminLogin from './pages/AdminLogin';
 import Register from './pages/Register';
 import { login as apiLogin, register as apiRegister, getMe } from './api/client';
 
@@ -165,7 +166,9 @@ export default function App() {
 
   // Hide persistent Navbar on login and register routes
   const hideNavbar =
-    location.pathname === '/login' || location.pathname === '/register';
+    location.pathname === '/login' ||
+    location.pathname === '/register' ||
+    location.pathname === '/admin-login';
 
   return (
     <AuthProvider>
@@ -178,6 +181,7 @@ export default function App() {
             <Route path="/restaurant/:id" element={<Restaurant />} />
             <Route path="/admin" element={<Admin />} />
             <Route path="/login" element={<Login />} />
+            <Route path="/admin-login" element={<AdminLogin />} />
             <Route path="/register" element={<Register />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

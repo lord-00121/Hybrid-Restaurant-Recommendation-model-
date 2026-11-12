@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../App';
-import { LogIn, Mail, Lock, AlertCircle, ArrowRight, Sparkles } from 'lucide-react';
+import { LogIn, Mail, Lock, AlertCircle, ArrowRight } from 'lucide-react';
 
 export default function Login() {
   const { login } = useAuth();
@@ -176,38 +176,6 @@ export default function Login() {
           </button>
         </form>
 
-        {/* Demo Credentials Helper */}
-        <div
-          style={{
-            marginTop: '20px',
-            padding: '10px 14px',
-            background: 'rgba(255, 255, 255, 0.02)',
-            borderRadius: 'var(--radius-sm)',
-            border: '1px dashed var(--border)',
-            fontSize: '0.78rem',
-            color: 'var(--text-secondary)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <Sparkles size={14} style={{ color: 'var(--accent-gold)' }} />
-            <span>Admin demo: admin@hybridrec.com / password123</span>
-          </div>
-          <button
-            type="button"
-            className="btn btn-ghost btn-sm"
-            style={{ fontSize: '0.72rem', padding: '2px 6px', color: 'var(--accent-teal)' }}
-            onClick={() => {
-              setEmail('admin@hybridrec.com');
-              setPassword('password123');
-            }}
-          >
-            Fill
-          </button>
-        </div>
-
         {/* Footer */}
         <div style={{ marginTop: '24px', textAlign: 'center', fontSize: '0.88rem', color: 'var(--text-secondary)' }}>
           Don't have an account?{' '}
@@ -216,6 +184,11 @@ export default function Login() {
             style={{ color: 'var(--accent-teal)', fontWeight: '600', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
           >
             Create one <ArrowRight size={13} />
+          </Link>
+        </div>
+        <div style={{ marginTop: '14px', textAlign: 'center', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+          <Link to="/admin-login" style={{ color: 'var(--text-secondary)' }}>
+            Admin sign in
           </Link>
         </div>
       </div>
