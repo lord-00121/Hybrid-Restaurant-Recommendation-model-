@@ -45,8 +45,6 @@ services:
         fromService:
           type: web
           name: tastify-api
-          property: hostport # https://tastify-api.onrender.com (scheme added by frontend)
+          property: host # public hostname e.g. tastify-api-e4s8.onrender.com (scheme added by frontend)
 
-  # NOTE: After the static site is created, add an SPA rewrite in the
-  # Render dashboard: tastify-web → Settings → Redirects/Rewrites →
-  #   Source: /*   Destination: /index.html   Action: Rewrite
+  # NOTE: Frontend uses HashRouter — no SPA rewrite rule needed on the static site.
