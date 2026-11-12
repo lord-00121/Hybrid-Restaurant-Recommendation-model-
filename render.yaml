@@ -1,11 +1,11 @@
 # Render Blueprint for Tastify — Hybrid Restaurant Recommendation System
 # Deploy: Render Dashboard → New → Blueprint → connect this repo.
 #
-# Prerequisites:
-#   1. A MongoDB Atlas cluster (free tier works). Create a database user and
-#      whitelist Render's outbound IPs (0.0.0.0/0 for simplicity on free tier).
-#   2. Fill in the sync: false env vars below (marked "SET ME") in the
-#      Render dashboard after the blueprint creates the services.
+# Database: PostgreSQL (free options: Neon.tech, Supabase, or Render Postgres).
+#   1. Create a free Postgres DB (e.g. https://neon.tech — no card required).
+#   2. Copy the connection string and convert it:
+#        postgresql://user:pass@host/db  →  postgresql+asyncpg://user:pass@host/db
+#   3. Set DATABASE_URL on tastify-api (marked "SET ME" below).
 
 services:
   # ── Backend: FastAPI + recommendation engine ──────────────────────────
@@ -18,10 +18,8 @@ services:
     startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /api
     envVars:
-      - key: MONGODB_URL
-        sync: false # SET ME: mongodb+srv://user:pass@cluster.mongodb.net/?retryWrites=true&w=majority
-      - key: DB_NAME
-        value: hybrid_rec
+      - key: DATABASE_URL
+        sync: false # SET ME: postgresql+asyncpg://user:pass@host/dbname
       - key: SECRET_KEY
         sync: false # SET ME: long random string, e.g. `openssl rand -hex 32`
       - key: ALGORITHM

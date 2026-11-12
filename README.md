@@ -88,37 +88,38 @@ Open http://localhost:3000 in your browser.
 
 A `render.yaml` Blueprint is included at the repo root. It provisions two services:
 
-- **`tastify-api`** — FastAPI backend (Python web service)
+- **`tastify-api`** — FastAPI backend (Python web service, SQLAlchemy + PostgreSQL)
 - **`tastify-web`** — React frontend (static site)
 
 ### Steps
 
-1. **MongoDB Atlas** (Render has no managed MongoDB):
-   - Create a free cluster at [mongodb.com/atlas](https://www.mongodb.com/atlas)
-   - Create a database user (e.g. `tastify` / strong password)
-   - Network Access → allow `0.0.0.0/0` (Render free tier has dynamic IPs)
-   - Copy the connection string: `mongodb+srv://user:pass@cluster.mongodb.net/?retryWrites=true&w=majority`
+1. **PostgreSQL database** (free, no card required — pick one):
+   - **Neon** (recommended): [neon.tech](https://neon.tech) → sign up → **Create project** → copy the connection string
+   - **Supabase**: [supabase.com](https://supabase.com) → new project → **Connect** → copy the URI
+   - **Render Postgres**: Render Dashboard → **New → PostgreSQL** (free tier expires after ~30 days)
+   - Convert the string for SQLAlchemy: `postgresql://user:pass@host/db` → `postgresql+asyncpg://user:pass@host/db`
 
 2. **Deploy via Blueprint**:
    - Push this repo to GitHub
    - Render Dashboard → **New → Blueprint** → select the repo
    - Render reads `render.yaml` and creates both services
    - Fill in the `sync: false` env vars on `tastify-api`:
-     - `MONGODB_URL` — your Atlas connection string
+     - `DATABASE_URL` — your Postgres connection string (with `+asyncpg`)
      - `SECRET_KEY` — `openssl rand -hex 32`
    - On `tastify-web` → **Settings → Redirects/Rewrites**, add:
      - Source `/*` → Destination `/index.html` → Action **Rewrite** (required for React Router deep links)
 
 3. **Seed the production database** (run locally once):
-   ```bash
+   ```powershell
    cd backend
-   $env:MONGODB_URL="mongodb+srv://user:pass@cluster.mongodb.net/?retryWrites=true&w=majority"  # PowerShell
+   $env:DATABASE_URL="postgresql+asyncpg://user:pass@host/dbname"  # PowerShell
    python -m seed.seed_data
    ```
 
 4. **Verify**: open the `tastify-web` URL — the frontend auto-connects to `tastify-api` via `VITE_API_URL` (injected from the backend service's host).
 
 > **Note**: Render free-tier services spin down after ~15 min idle (first request takes ~30–60s to wake). Upgrade to a paid instance for always-on availability.
+> **Local dev**: no database setup needed — the backend defaults to a local SQLite file (`backend/hybrid_rec.db`). Tables are auto-created on startup; run `python -m seed.seed_data` once to populate data.
 
 ## Features
 

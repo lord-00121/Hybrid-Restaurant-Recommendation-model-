@@ -13,7 +13,9 @@ if str(backend_dir) not in sys.path:
 
 import bcrypt
 from config import settings
-from database import db
+from database import get_sync_session_factory, init_db
+from models.db_models import Rating, Restaurant, User
+from sqlalchemy import delete, func, select
 
 def hash_password(password: str) -> str:
     """Hash a password using bcrypt directly."""
@@ -1235,16 +1237,23 @@ USER_NAMES_PREFS = [
 
 
 async def seed():
-    """Drops collections, seeds 200 restaurants, 50 users, and ratings."""
+    """Clears tables and seeds 200 restaurants, 50 users, and ratings."""
     print("=" * 65)
     print("HYBRID RESTAURANT RECOMMENDER: DATABASE SEEDING SCRIPT")
     print("=" * 65)
 
-    # 1. Drop existing collections
-    collections_to_drop = ["restaurants", "users", "ratings", "interactions"]
-    for coll_name in collections_to_drop:
-        await db[coll_name].drop()
-        print(f"Dropped collection: {coll_name}")
+    # Ensure tables exist (idempotent)
+    await init_db()
+
+    SessionLocal = get_sync_session_factory()
+    session = SessionLocal()
+
+    # 1. Clear existing tables (children first for FK safety)
+    session.execute(delete(Rating))
+    session.execute(delete(Restaurant))
+    session.execute(delete(User))
+    session.commit()
+    print("Cleared tables: ratings, restaurants, users")
 
     # 2. Hash default password once for efficiency
     default_password = "password123"
@@ -1253,40 +1262,61 @@ async def seed():
 
     # 3. Insert Users
     print("\nInserting 50 realistic users...")
-    user_docs = []
+    user_objs = []
     for i, (name, diet, cuisines, location, budget) in enumerate(USER_NAMES_PREFS):
         is_first = (i == 0)
         email = "admin@hybridrec.com" if is_first else f"{name.lower().replace(' ', '.')}@example.com"
-        user_docs.append({
-            "name": name,
-            "email": email,
-            "password_hash": hashed_pw,
-            "preferences": {
+        user_objs.append(User(
+            name=name,
+            email=email,
+            password_hash=hashed_pw,
+            preferences={
                 "diet": [diet],
                 "cuisines": cuisines,
                 "location": location,
                 "budget": budget,
             },
-            "is_admin": is_first,
-            "created_at": datetime.utcnow() - timedelta(days=random.randint(10, 180)),
-        })
+            is_admin=is_first,
+            created_at=datetime.utcnow() - timedelta(days=random.randint(10, 180)),
+        ))
 
-    user_insert_result = await db.users.insert_many(user_docs)
-    user_ids = [str(uid) for uid in user_insert_result.inserted_ids]
+    session.add_all(user_objs)
+    session.commit()
+    for u in user_objs:
+        session.refresh(u)
+    user_ids = [u.id for u in user_objs]
     print(f"Successfully inserted {len(user_ids)} users (Admin: admin@hybridrec.com / password123).")
 
     # 4. Insert Restaurants
     print(f"\nInserting {len(ALL_200_RESTAURANTS)} restaurants across 7 cities...")
-    rest_insert_result = await db.restaurants.insert_many(ALL_200_RESTAURANTS)
-    restaurant_ids = [str(rid) for rid in rest_insert_result.inserted_ids]
+    rest_objs = []
+    for r in ALL_200_RESTAURANTS:
+        rest_objs.append(Restaurant(
+            name=r["name"],
+            cuisine=r["cuisine"],
+            price_range=r["price_range"],
+            avg_rating=r.get("avg_rating", 0.0),
+            rating_count=0,
+            location=r["location"],
+            ambience=r["ambience"],
+            tags=r["tags"],
+            description=r.get("description", ""),
+            image_url=r.get("image_url", ""),
+        ))
+
+    session.add_all(rest_objs)
+    session.commit()
+    for r in rest_objs:
+        session.refresh(r)
+    restaurant_ids = [r.id for r in rest_objs]
     print(f"Successfully inserted {len(restaurant_ids)} restaurants.")
 
     # 5. Generate and Insert Ratings
     # Each user rates 5 to 20 restaurants, with realistic distribution favoring 3-5
     print("\nGenerating realistic ratings (favoring 3-5 stars)...")
     rating_scores_pool = [1, 2, 3, 3, 4, 4, 4, 5, 5]  # Weighted probability distribution
-    ratings_docs = []
-    rest_ratings_map: Dict[str, List[int]] = {rid: [] for rid in restaurant_ids}
+    rating_objs = []
+    rest_ratings_map: Dict[int, List[int]] = {rid: [] for rid in restaurant_ids}
 
     random.seed(101)  # Predictable generation
 
@@ -1300,39 +1330,41 @@ async def seed():
             days_ago = random.randint(1, 90)
             timestamp = datetime.utcnow() - timedelta(days=days_ago, minutes=random.randint(0, 1440))
 
-            ratings_docs.append({
-                "user_id": uid,
-                "restaurant_id": rid,
-                "score": score,
-                "timestamp": timestamp,
-            })
+            rating_objs.append(Rating(
+                user_id=uid,
+                restaurant_id=rid,
+                score=score,
+                timestamp=timestamp,
+            ))
             rest_ratings_map[rid].append(score)
 
-    if ratings_docs:
-        await db.ratings.insert_many(ratings_docs)
-    print(f"Successfully inserted {len(ratings_docs)} ratings.")
+    if rating_objs:
+        session.add_all(rating_objs)
+        session.commit()
+    print(f"Successfully inserted {len(rating_objs)} ratings.")
 
     # 6. Synchronize Restaurant avg_rating and rating_count
     print("\nUpdating restaurant average ratings and rating counts...")
+    rest_by_id = {r.id: r for r in rest_objs}
     for rid, scores in rest_ratings_map.items():
+        rest = rest_by_id.get(rid)
+        if not rest:
+            continue
         if scores:
-            new_avg = round(sum(scores) / len(scores), 2)
-            count = len(scores)
+            rest.avg_rating = round(sum(scores) / len(scores), 2)
+            rest.rating_count = len(scores)
         else:
-            new_avg = 3.5
-            count = 0
-
-        from bson import ObjectId
-        await db.restaurants.update_one(
-            {"_id": ObjectId(rid)},
-            {"$set": {"avg_rating": new_avg, "rating_count": count}}
-        )
+            rest.avg_rating = 3.5
+            rest.rating_count = 0
+    session.commit()
 
     # 7. Print Summary Statistics
-    total_users = await db.users.count_documents({})
-    total_rests = await db.restaurants.count_documents({})
-    total_ratings = await db.ratings.count_documents({})
-    avg_ratings_per_user = round(total_ratings / total_users, 1)
+    total_users = session.execute(select(func.count(User.id))).scalar() or 0
+    total_rests = session.execute(select(func.count(Restaurant.id))).scalar() or 0
+    total_ratings = session.execute(select(func.count(Rating.id))).scalar() or 0
+    avg_ratings_per_user = round(total_ratings / total_users, 1) if total_users else 0
+
+    session.close()
 
     print("\n" + "=" * 65)
     print("SEEDING COMPLETE: SUMMARY STATISTICS")

@@ -10,7 +10,7 @@ if str(backend_dir) not in sys.path:
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from database import db
+from database import init_db
 from routes.auth import router as auth_router
 from routes.ratings import router as ratings_router
 from routes.recommendations import router as recommendations_router
@@ -23,18 +23,12 @@ from routes.evaluation import router as evaluation_router
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup and shutdown events for the FastAPI application."""
-    # Create indexes on startup
+    # Create tables on startup (idempotent)
     try:
-        await db.users.create_index("email", unique=True)
-        await db.restaurants.create_index("name")
-        await db.restaurants.create_index("cuisine")
-        await db.restaurants.create_index("location.area")
-        await db.ratings.create_index([("user_id", 1), ("restaurant_id", 1)], unique=True)
-        await db.interactions.create_index("user_id")
-        await db.interactions.create_index("restaurant_id")
-        print("MongoDB indexes verified successfully.")
+        await init_db()
+        print("Database tables verified/created successfully.")
     except Exception as e:
-        print(f"Notice: Could not initialize MongoDB indexes during startup ({e}).")
+        print(f"Notice: Could not initialize database tables during startup ({e}).")
 
     yield
 

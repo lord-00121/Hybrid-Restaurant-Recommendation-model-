@@ -9,8 +9,11 @@ try:
     from pydantic_settings import BaseSettings, SettingsConfigDict
 
     class Settings(BaseSettings):
-        MONGODB_URL: str = "mongodb://localhost:27017"
-        DB_NAME: str = "hybrid_rec"
+        # SQLAlchemy async database URL.
+        # Local dev default: SQLite file (no external DB needed).
+        # Production (Render + Neon/Render Postgres):
+        #   postgresql+asyncpg://user:pass@host/dbname
+        DATABASE_URL: str = "sqlite+aiosqlite:///./hybrid_rec.db"
         SECRET_KEY: str = "hybrid-rec-secret-key-change-in-production"
         ALGORITHM: str = "HS256"
         ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days (10080 minutes)
@@ -28,8 +31,7 @@ except ImportError:
     from pydantic import BaseModel
 
     class Settings(BaseModel):  # type: ignore[no-redef]
-        MONGODB_URL: str = os.getenv("MONGODB_URL", "mongodb://localhost:27017")
-        DB_NAME: str = os.getenv("DB_NAME", "hybrid_rec")
+        DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./hybrid_rec.db")
         SECRET_KEY: str = os.getenv("SECRET_KEY", "hybrid-rec-secret-key-change-in-production")
         ALGORITHM: str = os.getenv("ALGORITHM", "HS256")
         ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", str(60 * 24 * 7)))

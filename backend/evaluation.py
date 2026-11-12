@@ -37,7 +37,8 @@ backend_dir = Path(__file__).resolve().parent
 if str(backend_dir) not in sys.path:
     sys.path.insert(0, str(backend_dir))
 
-from database import get_sync_db
+from database import get_sync_session_factory
+from models.db_models import Rating, Restaurant
 from engine.collaborative import CollaborativeEngine
 from engine.content_based import ContentBasedEngine
 from engine.hybrid import HybridEngine
@@ -214,11 +215,36 @@ def run_evaluation(k: int = 10) -> Dict[str, Any]:
 
     Returns a JSON-serialisable dict.
     """
-    db = get_sync_db()
+    SessionLocal = get_sync_session_factory()
+    session = SessionLocal()
 
     # ── Load data ──────────────────────────────────────────────────────────
-    all_ratings_raw: List[Dict[str, Any]] = list(db.ratings.find({}))
-    all_restaurants_raw: List[Dict[str, Any]] = list(db.restaurants.find({}))
+    all_ratings_raw: List[Dict[str, Any]] = [
+        {
+            "user_id": str(r.user_id),
+            "restaurant_id": str(r.restaurant_id),
+            "score": r.score,
+            "timestamp": r.timestamp,
+        }
+        for r in session.query(Rating).all()
+    ]
+    all_restaurants_raw: List[Dict[str, Any]] = [
+        {
+            "_id": str(r.id),
+            "name": r.name,
+            "cuisine": r.cuisine or [],
+            "price_range": r.price_range,
+            "avg_rating": r.avg_rating,
+            "rating_count": r.rating_count,
+            "location": r.location or {},
+            "ambience": r.ambience,
+            "tags": r.tags or [],
+            "description": r.description,
+            "image_url": r.image_url,
+        }
+        for r in session.query(Restaurant).all()
+    ]
+    session.close()
 
     if not all_ratings_raw or not all_restaurants_raw:
         return {
@@ -228,14 +254,6 @@ def run_evaluation(k: int = 10) -> Dict[str, Any]:
             "coverage": {name: 0.0 for name in STRATEGIES},
             "error": "Insufficient data – no ratings or no restaurants found.",
         }
-
-    # Stringify ObjectIds for consistency with the engine code
-    for r in all_ratings_raw:
-        r["user_id"] = str(r.get("user_id", ""))
-        r["restaurant_id"] = str(r.get("restaurant_id", ""))
-
-    for rest in all_restaurants_raw:
-        rest["_id"] = str(rest["_id"])
 
     total_restaurant_ids: Set[str] = {str(r["_id"]) for r in all_restaurants_raw}
 

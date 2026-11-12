@@ -3,8 +3,11 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 from fastapi import APIRouter, Depends, Query
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from database import get_db
+from models.db_models import Rating, Restaurant
 from engine.collaborative import CollaborativeEngine
 from engine.content_based import ContentBasedEngine
 from engine.hybrid import HybridEngine
@@ -71,11 +74,40 @@ def haversine_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> fl
     return R * c
 
 
+def _restaurant_to_dict(r: Restaurant) -> dict:
+    """Serializes a Restaurant ORM object to the Mongo-like dict shape the engines expect."""
+    loc = r.location or {}
+    return {
+        "_id": str(r.id),
+        "id": str(r.id),
+        "name": r.name,
+        "cuisine": r.cuisine or [],
+        "price_range": r.price_range,
+        "avg_rating": r.avg_rating,
+        "rating_count": r.rating_count,
+        "location": loc if isinstance(loc, dict) else {},
+        "ambience": r.ambience,
+        "tags": r.tags or [],
+        "description": r.description,
+        "image_url": r.image_url,
+    }
+
+
+def _rating_to_dict(r: Rating) -> dict:
+    """Serializes a Rating ORM object to the dict shape the engines expect."""
+    return {
+        "user_id": str(r.user_id),
+        "restaurant_id": str(r.restaurant_id),
+        "score": r.score,
+        "timestamp": r.timestamp,
+    }
+
+
 def _format_restaurant(doc: dict) -> dict:
-    """Formats a MongoDB restaurant document to string IDs."""
+    """Formats a restaurant dict to string IDs."""
     d = dict(doc)
-    d["id"] = str(d["_id"])
-    d["_id"] = str(d["_id"])
+    d["id"] = str(d.get("_id", d.get("id")))
+    d["_id"] = str(d.get("_id", d.get("id")))
     # Populate convenience flat area field from nested location
     if "location" in d and isinstance(d["location"], dict):
         d["area"] = d["location"].get("area", "")
@@ -93,7 +125,7 @@ async def get_recommendations(
     user_lng: Optional[float] = Query(None, description="User longitude coordinate"),
     alpha: Optional[float] = Query(None, ge=0.0, le=1.0, description="Optional manual override for alpha weight"),
     current_user=Depends(get_optional_current_user),
-    db=Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ):
     """Generates personalized hybrid recommendations for the user.
 
@@ -103,8 +135,8 @@ async def get_recommendations(
     - Unauthenticated users receive top popular restaurants sorted by rating
     """
     # 1. Fetch all restaurants from DB
-    restaurants_cursor = db.restaurants.find({})
-    raw_restaurants = await restaurants_cursor.to_list(length=2000)
+    result = await db.execute(select(Restaurant))
+    raw_restaurants = [_restaurant_to_dict(r) for r in result.scalars().all()]
 
     if not raw_restaurants:
         return {
@@ -197,8 +229,8 @@ async def get_recommendations(
     user_id = str(current_user["id"])
 
     # Fetch all ratings
-    ratings_cursor = db.ratings.find({})
-    raw_ratings = await ratings_cursor.to_list(length=20000)
+    ratings_result = await db.execute(select(Rating))
+    raw_ratings = [_rating_to_dict(r) for r in ratings_result.scalars().all()]
 
     # 1. Feature matrix and user profile
     feature_matrix, rest_ids = build_restaurant_feature_matrix(raw_restaurants)
