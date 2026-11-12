@@ -19,9 +19,28 @@ if str(backend_dir) not in sys.path:
 from config import settings
 from models.db_models import Base
 
+
+def _sanitize_url(url: str) -> str:
+    """Strip query params that SQLAlchemy asyncpg/psycopg drivers reject.
+
+    Neon connection strings often include sslmode/channel_binding which
+    asyncpg.connect() does not accept. SSL is still used by default.
+    """
+    if "?" not in url:
+        return url
+    base, _, query = url.partition("?")
+    kept = [
+        p for p in query.split("&")
+        if p and not p.lower().startswith(("sslmode=", "channel_binding="))
+    ]
+    return base + ("?" + "&".join(kept) if kept else "")
+
+
+DATABASE_URL = _sanitize_url(settings.DATABASE_URL)
+
 # Async engine — echo=False for clean logs
 engine = create_async_engine(
-    settings.DATABASE_URL,
+    DATABASE_URL,
     echo=False,
     pool_pre_ping=True,
     # SQLite needs this for concurrent writes; harmless on Postgres
@@ -57,7 +76,7 @@ def get_sync_session_factory():
     from sqlalchemy import create_engine
     from sqlalchemy.orm import sessionmaker
 
-    url = settings.DATABASE_URL
+    url = DATABASE_URL
     if url.startswith("sqlite+aiosqlite"):
         sync_url = url.replace("sqlite+aiosqlite", "sqlite")
     elif url.startswith("postgresql+asyncpg"):
