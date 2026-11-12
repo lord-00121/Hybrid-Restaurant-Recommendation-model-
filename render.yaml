@@ -1,0 +1,54 @@
+# Render Blueprint for Tastify — Hybrid Restaurant Recommendation System
+# Deploy: Render Dashboard → New → Blueprint → connect this repo.
+#
+# Prerequisites:
+#   1. A MongoDB Atlas cluster (free tier works). Create a database user and
+#      whitelist Render's outbound IPs (0.0.0.0/0 for simplicity on free tier).
+#   2. Fill in the sync: false env vars below (marked "SET ME") in the
+#      Render dashboard after the blueprint creates the services.
+
+services:
+  # ── Backend: FastAPI + recommendation engine ──────────────────────────
+  - type: web
+    name: tastify-api
+    runtime: python
+    rootDir: backend
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api
+    envVars:
+      - key: MONGODB_URL
+        sync: false # SET ME: mongodb+srv://user:pass@cluster.mongodb.net/?retryWrites=true&w=majority
+      - key: DB_NAME
+        value: hybrid_rec
+      - key: SECRET_KEY
+        sync: false # SET ME: long random string, e.g. `openssl rand -hex 32`
+      - key: ALGORITHM
+        value: HS256
+      - key: ACCESS_TOKEN_EXPIRE_MINUTES
+        value: "10080"
+      - key: DEFAULT_TOP_N
+        value: "10"
+      - key: DEFAULT_ALPHA
+        value: "0.5"
+      - key: PYTHON_VERSION
+        value: "3.11.9"
+
+  # ── Frontend: React + Vite static site ────────────────────────────────
+  - type: web
+    name: tastify-web
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: VITE_API_URL
+        fromService:
+          type: web
+          name: tastify-api
+          property: hostport # https://tastify-api.onrender.com (scheme added by frontend)
+
+  # NOTE: After the static site is created, add an SPA rewrite in the
+  # Render dashboard: tastify-web → Settings → Redirects/Rewrites →
+  #   Source: /*   Destination: /index.html   Action: Rewrite

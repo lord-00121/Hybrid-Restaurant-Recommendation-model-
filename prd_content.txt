@@ -1,0 +1,146 @@
+﻿Product Requirements Document: Hybrid Restaurant Recommendation System
+Authors: Ekagra Ramola, Hitesh Kandari ┬╖ Status: Draft v1.0 ┬╖ Based on the project presentation "Hybrid Restaurant Recommendation System"
+1. Overview
+This document defines the requirements for a hybrid restaurant recommendation system. The system combines content-based filtering and collaborative filtering to give each user a ranked list of restaurants that fit their tastes, budget, location and context. The guiding goal is not just to recommend highly rated restaurants, but to recommend the right restaurant for the right user.
+2. Background and Problem Statement
+Users face decision fatigue when choosing where to eat: too many options, differing preferences within groups, location and budget constraints, and large volumes of ratings and reviews to sift through. Existing restaurant recommenders fall short in several ways:
+Generic recommendations: they do not adapt to individual and evolving tastes.
+Shallow preference modelling: they capture basic categories but miss the nuance of what users want.
+Cold start: new users with little history and newly opened restaurants get poor recommendations.
+Rating bias and unreliable reviews: reviews can be subjective, manipulated or inconsistent.
+Conflicting factors: cuisine, location, price, ambience and availability are hard to balance together.
+No single recommendation technique solves all of these. A hybrid approach combines the strengths of several to cover each method's weaknesses.
+3. Goals and Non-Goals
+3.1 Goals
+G1: Provide personalized Top-N restaurant recommendations for each user.
+G2: Combine content-based and collaborative filtering through a tunable weighted hybrid score.
+G3: Reduce the impact of the cold-start problem for new users and new restaurants.
+G4: Help users discover new restaurants and cuisines, not only familiar ones.
+G5: Keep the architecture modular so each component can be developed, tuned and scaled independently.
+3.2 Non-Goals (v1)
+Real-time, context-aware recommendations (for example time of day or live availability).
+Deep learning models, review sentiment analysis and multi-modal inputs (see Future Scope).
+Table booking, ordering or payments.
+Integration with external platforms.
+4. Target Users and Personas
+5. User Stories
+As a new user, I can state my diet, cuisine and location preferences so that I get relevant recommendations immediately.
+As a returning user, I get recommendations that reflect my past ratings and interactions.
+As a user, I can filter or bias results by price range and distance.
+As a user, I see why a restaurant was recommended (for example "similar to places you liked" or "liked by people with similar taste").
+As a user, I can rate restaurants so future recommendations improve.
+As an admin, I can add and update restaurant details such as cuisine, price, ambience and tags.
+6. Scope and Functional Requirements
+6.1 Data Collection
+6.2 Content-Based Filtering Model
+6.3 Collaborative Filtering Model
+6.4 Hybrid Engine
+6.5 Recommendation Pipeline
+Collect user data (preferences, past interactions, implicit feedback).
+Process data (analyze restaurant features and user history).
+Generate content-based recommendations.
+Generate collaborative recommendations.
+Calculate individual scores from each model.
+Combine scores with hybrid weighting (╬▒).
+Rank restaurants by final hybrid score.
+Display the Top-N recommendations to the user.
+6.6 User Interface and API
+7. Non-Functional Requirements
+Performance: recommendations should return fast enough for interactive use (proposed target: under 2 seconds at p95 for Top-N retrieval).
+Scalability: the system should handle growth in users, restaurants and interactions; modular layers allow independent scaling.
+Data quality: validate and clean inputs; handle missing values and inconsistent or suspicious ratings.
+Adaptability: the model should refresh as user preferences change.
+Privacy and security: protect user data, use authenticated access to personal data, and collect only what is needed.
+Maintainability: modular components with clear interfaces between data, models and serving.
+8. System Architecture
+The system is modular, with each layer developed and optimized independently:
+Frontend: user interface for preferences, results and feedback.
+Backend / API layer: application logic that receives requests and orchestrates the models.
+Data layer: stores user profiles, restaurant features and interaction history.
+Recommendation engine: content-based model, collaborative model and hybrid scorer.
+Evaluation and tuning: offline metrics and ╬▒ tuning.
+Inputs: user preferences (diet, cuisine, location), restaurant features (menu, price, ambience), user ratings (explicit feedback scores) and interaction history (clicks, views, bookings).
+9. Technology Stack
+10. Success Metrics
+The presentation does not specify numeric targets, so the values below are proposed starting points to be confirmed with stakeholders.
+11. Evaluation Plan
+Split interaction data into train, validation and test sets.
+Benchmark three variants: content-only, collaborative-only and hybrid.
+Tune ╬▒ on the validation set (for example a grid over 0 to 1) and consider different ╬▒ values for cold-start versus warm users.
+Review results qualitatively with sample users to check relevance and variety.
+After launch, run A/B tests on click-through and satisfaction.
+12. Risks and Mitigations
+13. Roadmap
+14. Future Scope
+Deep learning integration.
+Real-time and context-aware recommendations.
+Sentiment analysis of reviews.
+Integration with external platforms.
+Multi-modal recommendation inputs.
+15. Open Questions
+What dataset will be used: existing public data, scraped data or a live user base?
+Which collaborative filtering technique will be used (user-based, item-based or matrix factorization)?
+What is the default Top-N and the default ╬▒?
+How will location and distance be determined (user-entered or device location)?
+What privacy and consent requirements apply to collecting interaction data?
+Is the deliverable an academic prototype or a production product? This affects the scale and non-functional targets above.
+--- TABLES ---
+Persona | Description | Key Need | 
+New user | Has just signed up, little or no history | Useful recommendations quickly from stated preferences | 
+Regular diner | Has ratings, clicks and bookings | Suggestions that match established tastes, plus some discovery | 
+Explorer | Wants new cuisines and places | Novel, relevant options beyond past choices | 
+Budget-conscious user | Strong price constraints | Results that respect price range and proximity | 
+Restaurant owner / admin | Manages restaurant data | Accurate listings that are surfaced to relevant users | 
+ID | Requirement | Priority | 
+FR-1 | Capture explicit user preferences: diet, cuisine, location, budget. | P0 | 
+FR-2 | Capture explicit feedback: user ratings (scores) and reviews. | P0 | 
+FR-3 | Capture implicit feedback: clicks, views and bookings. | P1 | 
+FR-4 | Store restaurant features: cuisine type, price range, rating score, location, food categories, ambience, tags and specialties, menu. | P0 | 
+ID | Requirement | Priority | 
+FR-5 | Build a profile vector per user from the features of restaurants they liked, rated highly or interacted with. | P0 | 
+FR-6 | Represent each restaurant as a feature vector (price range, cuisine, rating, location/proximity, food categories, ambience, tags). | P0 | 
+FR-7 | Score restaurants by cosine similarity between the user profile vector and restaurant vectors. | P0 | 
+ID | Requirement | Priority | 
+FR-8 | Build a user-item interaction matrix from ratings, reviews and clicks. | P0 | 
+FR-9 | Identify users with similar tastes and predict scores for restaurants the target user has not visited. | P0 | 
+FR-10 | Handle sparse rating data gracefully. | P1 | 
+ID | Requirement | Priority | 
+FR-11 | Combine both models using: Hybrid Score = ╬▒ ├ù Content Score + (1 ΓêÆ ╬▒) ├ù Collaborative Score. | P0 | 
+FR-12 | ╬▒ is a configurable parameter in the range 0 to 1, tuned through offline evaluation. | P0 | 
+FR-13 | Normalize content and collaborative scores to a common scale before combining. | P0 | 
+FR-14 | Cold-start handling: for users with little history, weight toward the content-based score (higher ╬▒); for new restaurants with no interactions, rely on content features. | P0 | 
+FR-15 | Rank restaurants by hybrid score and return the Top-N list. | P0 | 
+FR-16 | Exclude restaurants the user has already visited, unless explicitly requested. | P1 | 
+ID | Requirement | Priority | 
+FR-17 | Web UI for entering preferences, viewing recommendations and rating restaurants. | P0 | 
+FR-18 | REST API exposing recommendation, rating and restaurant-data endpoints. | P0 | 
+FR-19 | Recommendation cards show name, cuisine, price range, rating, distance and a short reason for the recommendation. | P1 | 
+FR-20 | Filters for price, cuisine and distance. | P1 | 
+Layer | Proposed Technology | 
+Frontend | HTML, CSS, JavaScript; React (or similar) | 
+Backend | Python with Flask or FastAPI | 
+Database | MongoDB (NoSQL) or MySQL (relational) | 
+Recommendation engine | Python with Pandas, NumPy, Scikit-learn; cosine similarity (content-based); collaborative filtering | 
+API | REST | 
+Supporting processes | Data preprocessing and feature engineering; model evaluation and tuning | 
+Category | Metric | Proposed Target | 
+Model quality (offline) | Precision@K, Recall@K, NDCG@K | Hybrid outperforms each single model on the same split | 
+Model quality (offline) | RMSE / MAE of predicted ratings | Lower than collaborative-only baseline | 
+Diversity and discovery | Coverage; share of recommendations from new cuisines or restaurants | Higher than content-only baseline | 
+Cold start | Recommendation quality for users with fewer than N interactions | Within an agreed gap of warm-user quality | 
+Engagement | Click-through rate on recommendations | To be set after baseline measurement | 
+Satisfaction | Average rating given to recommended restaurants | To be set after baseline measurement | 
+Performance | p95 recommendation latency | Under 2 seconds | 
+Risk | Mitigation | 
+Cold start for new users and restaurants | Preference onboarding; higher content-based weight when history is thin | 
+Sparse rating data | Use implicit feedback; apply similarity methods suited to sparse data | 
+Data quality and inconsistency | Preprocessing, validation and outlier or fake-review checks | 
+Scalability with large datasets | Precompute similarities; cache results; modular scaling | 
+Changing user preferences | Periodic retraining; weight recent interactions more heavily | 
+Filter bubble from content-based bias | Tunable ╬▒ to keep room for discovery | 
+Phase | Focus | Deliverables | 
+Phase 1: Foundation | Data and baselines | Dataset collection and cleaning, feature engineering, content-based baseline | 
+Phase 2: Core models | Personalization | Collaborative filtering model, hybrid scorer, ╬▒ tuning | 
+Phase 3: Product | Serving and UI | REST API, web UI, filters, recommendation explanations | 
+Phase 4: Evaluation | Validation | Offline benchmarking, user testing, A/B test setup | 
+Phase 5: Future scope | Enhancements | See section 14 | 
